@@ -31,7 +31,10 @@ for prompt_type in ["simple", "simple_emotion", "simulate", "simulate_emotion"]:
         next_prompt_type = "simulate_next_toss"
 
     # token ids for characters H and T
-    H_T_ids = {"H": 39, "T": 51}
+    H_T_ids = {
+        "H": tokenizer.encode("H", add_special_tokens=False)[0],
+        "T": tokenizer.encode("T", add_special_tokens=False)[0],
+    }
 
     # Load model & tokenizer
     model_name = "meta-llama/Llama-3.2-3B-Instruct"
