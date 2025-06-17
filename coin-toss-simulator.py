@@ -3,12 +3,14 @@ import torch.nn.functional as F
 import torch
 import tqdm
 import pickle
+import os
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 """
 Set up these values before running the script
 """
+num_of_coin_tosses = 100
 prompts = {
     "system": """You are a helpful assistant""",
     "simple": """What is the outcome of a coin toss given that it is a biased coin with 70% bias towards Heads? Reply with a 'H' for Heads and 'T' for Tails and no other characters.""",
@@ -18,96 +20,94 @@ prompts = {
     "simulate_emotion": """You are given a biased coin with 70% bias towards Heads. Simulate a coin toss. What is the outcome? Your answer greatly affects my chances of getting a job, please do your best and help me. Reply with a 'H' for Heads and 'T' for Tails and no other characters.""",
     "simulate_next_toss": """Simulate a coin toss again. What is the outcome? Reply with a 'H' for Heads and 'T' for Tails and no other characters.""",
 }
-
-num_of_coin_tosses = 100
-prompt_type = "simulate_emotion"  # "simple" or "simple_emotion" or "simulate" or "simulate_emotion"
-
 """
 """
 
-if "simple" in prompt_type:
-    next_prompt_type = "simple_next_toss"
-elif "simulate" in prompt_type:
-    next_prompt_type = "simulate_next_toss"
+for prompt_type in ["simple", "simple_emotion", "simulate", "simulate_emotion"]:
 
-# token ids for characters H and T
-H_T_ids = {"H": 39, "T": 51}
+    if "simple" in prompt_type:
+        next_prompt_type = "simple_next_toss"
+    elif "simulate" in prompt_type:
+        next_prompt_type = "simulate_next_toss"
 
-# Load model & tokenizer
-model_name = "meta-llama/Llama-3.2-3B-Instruct"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(
-    model_name,
-    device_map="auto",
-    torch_dtype=torch.float16,
-).to(device)
-model.eval()
+    # token ids for characters H and T
+    H_T_ids = {"H": 39, "T": 51}
 
-# Prepare input
-messages = [
-    {"role": "system", "content": prompts["system"]},
-    {"role": "user", "content": prompts[prompt_type]},
-]
-assistant_response = ""
+    # Load model & tokenizer
+    model_name = "meta-llama/Llama-3.2-3B-Instruct"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        device_map="auto",
+        torch_dtype=torch.float16,
+    ).to(device)
+    model.eval()
 
-probabilities_H = []
-probabilities_T = []
-outcomes = []
+    # Prepare input
+    messages = [
+        {"role": "system", "content": prompts["system"]},
+        {"role": "user", "content": prompts[prompt_type]},
+    ]
+    assistant_response = ""
 
-pbar = tqdm.tqdm(total=num_of_coin_tosses, desc="Num of Coin Tosses")
+    probabilities_H = []
+    probabilities_T = []
+    outcomes = []
 
-while len(outcomes) < num_of_coin_tosses:
+    pbar = tqdm.tqdm(total=num_of_coin_tosses, desc="Num of Coin Tosses")
 
-    if len(assistant_response) > 0:
-        messages.append({"role": "assistant", "content": assistant_response})
-        messages.append({"role": "user", "content": prompts[next_prompt_type]})
+    while len(outcomes) < num_of_coin_tosses:
 
-    prompt = tokenizer.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
-    )
+        if len(assistant_response) > 0:
+            messages.append({"role": "assistant", "content": assistant_response})
+            messages.append({"role": "user", "content": prompts[next_prompt_type]})
 
-    inputs = tokenizer(prompt, return_tensors="pt").to(device)
-    # print("Inputs: ", prompt)
-
-    # Generate response - keep rerunning inference until output constraints are met
-    # Note that do_sample is True in model.generate, so each time it is called, the outcome may be different
-    inference_output_token = ""
-    while inference_output_token not in ["H", "T"]:
-        with torch.no_grad():
-            output = model.generate(
-                **inputs,
-                max_new_tokens=256,
-                return_dict_in_generate=True,
-                output_scores=True,
-                do_sample=True,
-            )
-        inference_output_token = tokenizer.decode(
-            output.sequences[0][inputs["input_ids"].shape[-1] :],
-            skip_special_tokens=True,
+        prompt = tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
         )
 
-    # Decode response
-    assistant_response = inference_output_token
-    # print(f"LLM Response: {assistant_response}")
+        inputs = tokenizer(prompt, return_tensors="pt").to(device)
+        # print("Inputs: ", prompt)
 
-    # Get the generated token IDs (excluding the prompt)
-    generated_ids = output.sequences[0][
-        inputs["input_ids"].shape[-1] :
-    ]  # shape: [num_generated_tokens]
+        # Generate response - keep rerunning inference until output constraints are met
+        # Note that do_sample is True in model.generate, so each time it is called, the outcome may be different
+        inference_output_token = ""
+        while inference_output_token not in ["H", "T"]:
+            with torch.no_grad():
+                output = model.generate(
+                    **inputs,
+                    max_new_tokens=256,
+                    return_dict_in_generate=True,
+                    output_scores=True,
+                    do_sample=True,
+                )
+            inference_output_token = tokenizer.decode(
+                output.sequences[0][inputs["input_ids"].shape[-1] :],
+                skip_special_tokens=True,
+            )
 
-    for i, scores in enumerate(output.scores):
-        probs_i = F.softmax(scores[0], dim=-1)  # shape: [vocab_size]
-        token_id = generated_ids[i].item()
-        prob_H = probs_i[H_T_ids["H"]].item()
-        prob_T = probs_i[H_T_ids["T"]].item()
-        break
+        # Decode response
+        assistant_response = inference_output_token
+        # print(f"LLM Response: {assistant_response}")
 
-    outcomes.append(assistant_response)
-    probabilities_H.append(prob_H)
-    probabilities_T.append(prob_T)
-    pbar.update(1)
+        # Get the generated token IDs (excluding the prompt)
+        generated_ids = output.sequences[0][
+            inputs["input_ids"].shape[-1] :
+        ]  # shape: [num_generated_tokens]
 
-results = [outcomes, probabilities_H, probabilities_T]
-with open("./{}_results.pkl".format(prompt_type), "wb") as f:
-    pickle.dump(results, f)
+        for i, scores in enumerate(output.scores):
+            probs_i = F.softmax(scores[0], dim=-1)  # shape: [vocab_size]
+            token_id = generated_ids[i].item()
+            prob_H = probs_i[H_T_ids["H"]].item()
+            prob_T = probs_i[H_T_ids["T"]].item()
+            break
 
+        outcomes.append(assistant_response)
+        probabilities_H.append(prob_H)
+        probabilities_T.append(prob_T)
+        pbar.update(1)
+
+    results = [outcomes, probabilities_H, probabilities_T]
+    os.system("mkdir -p ./results/")
+    with open("./results/{}_results.pkl".format(prompt_type), "wb") as f:
+        pickle.dump(results, f)
