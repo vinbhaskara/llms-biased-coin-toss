@@ -11,6 +11,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 Set up these values before running the script
 """
 num_of_coin_tosses = 100
+model_name = "meta-llama/Llama-3.2-3B-Instruct"
 prompts = {
     "system": """You are a helpful assistant""",
     "simple": """What is the outcome of a coin toss given that it is a biased coin with 70% bias towards Heads? Reply with a 'H' for Heads and 'T' for Tails and no other characters.""",
@@ -31,7 +32,6 @@ for prompt_type in ["simple", "simple_emotion", "simulate", "simulate_emotion"]:
         next_prompt_type = "simulate_next_toss"
 
     # Load model & tokenizer
-    model_name = "meta-llama/Llama-3.2-3B-Instruct"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
