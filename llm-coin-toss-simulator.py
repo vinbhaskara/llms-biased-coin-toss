@@ -30,12 +30,6 @@ for prompt_type in ["simple", "simple_emotion", "simulate", "simulate_emotion"]:
     elif "simulate" in prompt_type:
         next_prompt_type = "simulate_next_toss"
 
-    # token ids for characters H and T
-    H_T_ids = {
-        "H": tokenizer.encode("H", add_special_tokens=False)[0],
-        "T": tokenizer.encode("T", add_special_tokens=False)[0],
-    }
-
     # Load model & tokenizer
     model_name = "meta-llama/Llama-3.2-3B-Instruct"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -45,6 +39,12 @@ for prompt_type in ["simple", "simple_emotion", "simulate", "simulate_emotion"]:
         torch_dtype=torch.float16,
     ).to(device)
     model.eval()
+
+    # token ids for characters H and T
+    H_T_ids = {
+        "H": tokenizer.encode("H", add_special_tokens=False)[0],
+        "T": tokenizer.encode("T", add_special_tokens=False)[0],
+    }
 
     # Prepare input
     messages = [
