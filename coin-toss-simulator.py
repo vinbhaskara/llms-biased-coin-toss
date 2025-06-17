@@ -111,20 +111,3 @@ results = [outcomes, probabilities_H, probabilities_T]
 with open("./{}_results.pkl".format(prompt_type), "wb") as f:
     pickle.dump(results, f)
 
-
-# # Extract probabilities
-# logits = model(**inputs).logits[0, -1, :]  # Last token probabilities
-# probs = torch.nn.functional.softmax(logits, dim=-1)
-
-# # Get probabilities for 'H' and 'T'
-# h_prob = probs[tokenizer.convert_tokens_to_ids("H")].item()
-# t_prob = probs[tokenizer.convert_tokens_to_ids("T")].item()
-
-# print(f"Probability of 'H': {h_prob}")
-# print(f"Probability of 'T': {t_prob}")
-
-# normalized_h_prob = h_prob / (h_prob + t_prob)
-# normalized_t_prob = t_prob / (h_prob + t_prob)
-
-# print(f"Probability of 'H': {normalized_h_prob}")
-# print(f"Probability of 'T': {normalized_t_prob}")
