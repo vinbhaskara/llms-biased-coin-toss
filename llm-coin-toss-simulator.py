@@ -31,7 +31,7 @@ model = AutoModelForCausalLM.from_pretrained(
     model_name,
     device_map="auto",
     torch_dtype=torch.bfloat16 if bf_16_available else torch.float16,
-).to(device)
+)
 model.eval()
 
 for prompt_type in ["simple", "simple_emotion", "simulate", "simulate_emotion"]:
