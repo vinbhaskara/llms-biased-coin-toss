@@ -24,21 +24,21 @@ prompts = {
 """
 """
 
+# Load model & tokenizer
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    device_map="auto",
+    torch_dtype=torch.float16,
+).to(device)
+model.eval()
+
 for prompt_type in ["simple", "simple_emotion", "simulate", "simulate_emotion"]:
 
     if "simple" in prompt_type:
         next_prompt_type = "simple_next_toss"
     elif "simulate" in prompt_type:
         next_prompt_type = "simulate_next_toss"
-
-    # Load model & tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        device_map="auto",
-        torch_dtype=torch.float16,
-    ).to(device)
-    model.eval()
 
     # token ids for characters H and T
     H_T_ids = {
@@ -83,6 +83,8 @@ for prompt_type in ["simple", "simple_emotion", "simulate", "simulate_emotion"]:
                     return_dict_in_generate=True,
                     output_scores=True,
                     do_sample=True,
+                    temperature=0.6,
+                    top_p=0.9,
                 )
             inference_output_token = tokenizer.decode(
                 output.sequences[0][inputs["input_ids"].shape[-1] :],
