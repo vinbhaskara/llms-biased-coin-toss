@@ -66,6 +66,7 @@ for prompt_type in ["simple", "simple_emotion", "simulate", "simulate_emotion"]:
             messages.append({"role": "assistant", "content": assistant_response})
             messages.append({"role": "user", "content": prompts[next_prompt_type]})
 
+        # TODO: can be made more efficient without having to tokenize all chat history each time
         prompt = tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
@@ -78,6 +79,7 @@ for prompt_type in ["simple", "simple_emotion", "simulate", "simulate_emotion"]:
         inference_output_token = ""
         while inference_output_token not in ["H", "T"]:
             with torch.no_grad():
+                # TODO: can be more efficient without having to do inference on prev chat history each time by maintaining a KV cache
                 output = model.generate(
                     **inputs,
                     max_new_tokens=256,
